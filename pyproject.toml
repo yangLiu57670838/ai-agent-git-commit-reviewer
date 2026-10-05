@@ -1,0 +1,1 @@
+# Project metadata, dependencies (Python 3.11+, Pydantic, CLI, LLM SDK), pytest config, and the `gitdiff-scout` entry point.
