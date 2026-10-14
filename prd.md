@@ -80,6 +80,18 @@ Suggested action: document the option under Request Config.
 - `report --run <results-path>` generates report-ready Markdown tables and qualitative example candidates from a saved run.
 - The CLI must fail clearly when the repository is missing, the Git range is invalid, or the working tree cannot be read.
 
+### Revision resolution
+
+`HEAD` and relative references such as `HEAD~1` move whenever the repository changes, so they are resolved exactly once per review:
+
+- At the start of a review, resolve both ends of `--range` to full commit SHAs with `git rev-parse --verify <rev>^{commit}`.
+- Every tool call during that review uses the resolved SHAs, never `HEAD` or the original range text.
+- JSON output and run metadata record the original range text and both resolved SHAs.
+- Accept only two-dot ranges (`A..B`) in version one; reject three-dot ranges (`A...B`) with a clear message.
+- Relative references follow the first parent (`HEAD~1` is the first parent of `HEAD`). Merge commits are rejected in version one.
+- Reject a range whose base does not exist, such as `HEAD~1` on the repository's root commit, with a clear message.
+- Reviews work on a detached `HEAD`; no branch is required.
+
 ### Agent tools
 
 The agent may use only read-only local tools:
@@ -107,7 +119,8 @@ The agent must return an explicit empty finding list when no update is warranted
 
 - Use 30 historical Axios commits selected from a fixed revision window.
 - Include approximately 10 documentation-update cases, 10 no-update cases, and 10 ambiguous/test-focused cases.
-- Store the commit SHA, revision range, label, expected file paths, and short human rationale in JSONL.
+- Store the commit SHA, revision range, label, expected file paths, and short human rationale in JSONL. Ranges use full SHAs (`<parent-sha>..<commit-sha>`), never `HEAD` or relative references.
+- Exclude merge commits from the dataset.
 - Document label definitions and inclusion/exclusion rules in `dataset/annotation_guide.md`.
 - Keep a separate held-out test split of at least 10 tasks; use the remaining tasks as the development split for prompt and tool tuning.
 - Record the Axios commit used to construct the dataset, model name, prompt version, and run timestamp.
@@ -141,7 +154,7 @@ Each evaluation run is saved under `results/runs/<timestamp>/` with per-task out
 - Repository search: `rg` with bounded results.
 - LLM layer: one tool-calling agent and one no-tools baseline using the same selected model.
 - Outputs: Pydantic-validated JSON schema, then rendered as text.
-- Tests: unit tests for Git parsing, tool bounds, JSON validation, and metric calculations.
+- Tests: unit tests for Git parsing, revision resolution (`HEAD`, `HEAD~n`, root commit, merge commit, three-dot range, detached `HEAD`), tool bounds, JSON validation, and metric calculations.
 
 Initial architecture:
 
@@ -217,7 +230,7 @@ The prototype is complete when:
 | Days | Outcome |
 |---|---|
 | 1–2 | Initialise repo, clone/pin Axios corpus, write annotation guide, select 30 commits. Start `REPORT.md` methodology draft and experiment log. |
-| 3–4 | Implement Git/repository read tools and a JSON output schema. |
+| 3–4 | Implement revision resolution, Git/repository read tools, and a JSON output schema. |
 | 5–6 | Build the tool-calling review agent and CLI text/JSON rendering. |
 | 7 | Build and test diff-only baseline. |
 | 8–9 | Label review, finalise train/test split, run initial experiments. Log observations. |
@@ -238,6 +251,7 @@ Experiment log entries are added daily; the report draft grows alongside the cod
 | Evaluation set is too small for strong claims. | Describe results as exploratory; publish the dataset and per-task outputs. |
 | Prompts are tuned on the test split, inflating results. | Tune only on the development split; freeze prompts before the final held-out run. |
 | Report is written from memory at the end and misses details. | Keep `reports/experiment_log.md` daily and generate tables from saved runs. |
+| `HEAD` moves during or between runs, so results cannot be traced to a commit. | Resolve ranges to full SHAs once per review, store SHAs in the dataset, and record resolved SHAs in every output. |
 
 ## 15. Deliverables
 

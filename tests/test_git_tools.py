@@ -1,1 +1,1 @@
-# Unit tests for Git diff parsing, range validation, and file history retrieval.
+# Unit tests for Git diff parsing, HEAD/range resolution to SHAs and its edge cases, and file history retrieval.
